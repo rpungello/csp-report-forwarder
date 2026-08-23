@@ -106,7 +106,7 @@ async function forwardToClickHouse(report) {
   const url = `${CLICKHOUSE_URL.replace(/\/$/, '')}/`;
 
   const headers = {
-    'Content-Type': 'application/x-ndjson',
+    'Content-Type': 'application/json',
     'X-ClickHouse-Query': CLICKHOUSE_INSERT_QUERY
   };
   const authorizationHeader = getAuthorizationHeader();

@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 
-const { extractReport, parseRequestBody } = require('../index');
+const { createServer, extractReport, parseRequestBody } = require('../index');
 
 function createMockRequest(chunks) {
   const req = new EventEmitter();
@@ -56,4 +56,30 @@ test('parseRequestBody rejects oversized body', async () => {
   const req = createMockRequest(['a'.repeat(1024 * 1024 + 1)]);
 
   await assert.rejects(parseRequestBody(req), /Request body too large/);
+});
+
+test('createServer returns 405 for non-POST on report path', async () => {
+  const server = createServer();
+  await new Promise((resolve) => server.listen(0, resolve));
+  const { port } = server.address();
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/csp-report`);
+    assert.equal(response.status, 405);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('createServer returns 404 for non-report path', async () => {
+  const server = createServer();
+  await new Promise((resolve) => server.listen(0, resolve));
+  const { port } = server.address();
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/not-found`);
+    assert.equal(response.status, 404);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
