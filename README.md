@@ -1,1 +1,98 @@
 # csp-report-forwarder
+
+A small Node/Express service that receives browser [Content-Security-Policy]
+violation reports and writes them into a ClickHouse table.
+
+Supports both reporting mechanisms browsers use:
+- Legacy `report-uri` (`Content-Type: application/csp-report`, body has a
+  top-level `csp-report` key)
+- Modern Reporting API `report-to` (`Content-Type: application/reports+json`,
+  body is an array of report objects)
+
+## 1. Create the ClickHouse table
+
+Run `clickhouse/init.sql` against your ClickHouse instance (adjust the
+database name if you're not using `default`):
+
+```bash
+clickhouse-client --multiquery < clickhouse/init.sql
+```
+
+## 2. Configure your CSP header
+
+Point violation reports at this service, e.g.:
+
+```
+Content-Security-Policy: default-src 'self'; report-uri https://reports.example.com/csp-report; report-to csp-endpoint
+Reporting-Endpoints: csp-endpoint="https://reports.example.com/csp-report"
+```
+
+## 3. Run locally
+
+```bash
+npm install
+CLICKHOUSE_URL=http://localhost:8123 \
+CLICKHOUSE_USER=default \
+CLICKHOUSE_PASSWORD=changeme \
+CLICKHOUSE_DATABASE=default \
+CLICKHOUSE_TABLE=csp_reports \
+npm start
+```
+
+## 4. Build and run the Docker image
+
+```bash
+docker build -t csp-report-forwarder:latest .
+
+docker run -d \
+  --name csp-report-forwarder \
+  -p 8080:8080 \
+  -e CLICKHOUSE_URL=http://your-clickhouse-host:8123 \
+  -e CLICKHOUSE_USER=default \
+  -e CLICKHOUSE_PASSWORD=changeme \
+  -e CLICKHOUSE_DATABASE=default \
+  -e CLICKHOUSE_TABLE=csp_reports \
+  csp-report-forwarder:latest
+```
+
+Then put a reverse proxy (nginx, Traefik, Caddy) in front of it to terminate
+TLS, since the endpoint needs to be reachable over HTTPS from real browsers.
+
+## Environment variables
+
+| Variable              | Default                 | Description                                  |
+|------------------------|--------------------------|-----------------------------------------------|
+| `PORT`                 | `8080`                   | Port the HTTP server listens on               |
+| `CLICKHOUSE_URL`       | `http://localhost:8123`  | ClickHouse HTTP interface URL                 |
+| `CLICKHOUSE_USER`      | `default`                | ClickHouse user                               |
+| `CLICKHOUSE_PASSWORD`  | (empty)                  | ClickHouse password                           |
+| `CLICKHOUSE_DATABASE`  | `default`                | ClickHouse database                           |
+| `CLICKHOUSE_TABLE`     | `csp_reports`             | Target table name                             |
+| `BODY_LIMIT`           | `256kb`                  | Max accepted request body size                |
+
+## Endpoints
+
+- `POST /csp-report` — accepts CSP reports and inserts them into ClickHouse.
+  Always responds `204 No Content` on success (browsers ignore the body).
+- `GET /healthz` — returns `200` if ClickHouse is reachable, `503` otherwise.
+  Used by the Docker `HEALTHCHECK`.
+
+## Deploying to multiple Docker hosts
+
+Push the image to a registry your hosts can pull from, then run the same
+`docker run` command (with host-specific env vars) on each host:
+
+```bash
+docker build -t your-registry.example.com/csp-report-forwarder:latest .
+docker push your-registry.example.com/csp-report-forwarder:latest
+
+# on each host
+docker pull your-registry.example.com/csp-report-forwarder:latest
+docker run -d --name csp-report-forwarder -p 8080:8080 \
+  -e CLICKHOUSE_URL=... -e CLICKHOUSE_PASSWORD=... \
+  your-registry.example.com/csp-report-forwarder:latest
+```
+
+If you're managing several hosts, a Docker Swarm stack file or a simple
+`docker compose` file referencing the pushed image works well too — happy to
+generate one if you're using either.

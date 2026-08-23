@@ -1,0 +1,17 @@
+{
+  "name": "csp-report-forwarder",
+  "version": "1.0.0",
+  "description": "Receives Content-Security-Policy violation reports and forwards them to ClickHouse",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@clickhouse/client": "^1.4.0",
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
