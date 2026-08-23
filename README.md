@@ -91,6 +91,11 @@ ghcr.io/<owner>/<repo>:sha-<short-sha>
 
 Pushing a tag like `v1.2.0` additionally publishes `:1.2.0` and `:1.2`.
 
+Each tag is published as a multi-arch manifest for `linux/amd64` and
+`linux/arm64` (via QEMU-based cross-building), so `docker pull` on either an
+Intel/AMD host or an ARM host (e.g. Raspberry Pi, Apple Silicon, AWS
+Graviton) automatically gets the right image.
+
 No secrets to configure — it uses the repo's built-in `GITHUB_TOKEN`, which
 already has permission to push to `ghcr.io/<owner>/<repo>`. The first time
 the workflow runs, the resulting package may be created as **private**; if
