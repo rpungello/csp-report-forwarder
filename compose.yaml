@@ -1,8 +1,6 @@
 services:
   app:
-    # Swap this for the ghcr.io image once it's published, e.g.:
-    # image: ghcr.io/<owner>/<repo>:latest
-    build: .
+    image: ghcr.io/rpungello/csp-report-forwarder:latest
     container_name: csp-report-forwarder
     restart: unless-stopped
     environment:
