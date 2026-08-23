@@ -106,7 +106,6 @@ async function forwardToClickHouse(report) {
   const url = `${CLICKHOUSE_URL.replace(/\/$/, '')}/`;
 
   const headers = {
-    'Content-Type': 'application/json',
     'X-ClickHouse-Query': CLICKHOUSE_INSERT_QUERY
   };
   const authorizationHeader = getAuthorizationHeader();
@@ -178,5 +177,6 @@ if (require.main === module) {
 module.exports = {
   createServer,
   extractReport,
-  parseRequestBody
+  parseRequestBody,
+  MAX_BODY_SIZE_BYTES
 };

@@ -4,7 +4,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 
-const { createServer, extractReport, parseRequestBody } = require('../index');
+const {
+  createServer,
+  extractReport,
+  parseRequestBody,
+  MAX_BODY_SIZE_BYTES
+} = require('../index');
 
 function createMockRequest(chunks) {
   const req = new EventEmitter();
@@ -53,7 +58,7 @@ test('parseRequestBody rejects empty body', async () => {
 });
 
 test('parseRequestBody rejects oversized body', async () => {
-  const req = createMockRequest(['a'.repeat(1024 * 1024 + 1)]);
+  const req = createMockRequest(['a'.repeat(MAX_BODY_SIZE_BYTES + 1)]);
 
   await assert.rejects(parseRequestBody(req), /Request body too large/);
 });
