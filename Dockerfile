@@ -9,4 +9,4 @@ COPY index.js ./
 
 EXPOSE 3000
 
-CMD ["npm", "run", "forward"]
+CMD ["node", "index.js"]

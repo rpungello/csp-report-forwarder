@@ -128,7 +128,8 @@ async function forwardToClickHouse(report) {
 
   if (!response.ok) {
     const message = await response.text();
-    console.error(`ClickHouse insert failed (${response.status}): ${message}`);
+    const sanitizedMessage = message.slice(0, 500);
+    console.error(`ClickHouse insert failed (${response.status}): ${sanitizedMessage}`);
     throw new UpstreamError('Upstream ClickHouse request failed');
   }
 }
