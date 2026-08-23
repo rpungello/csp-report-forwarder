@@ -36,7 +36,7 @@ function extractReport(payload) {
 
 function parseRequestBody(req) {
   return new Promise((resolve, reject) => {
-    let body = '';
+    const chunks = [];
     let bytes = 0;
     let aborted = false;
 
@@ -52,10 +52,11 @@ function parseRequestBody(req) {
         req.destroy();
         return;
       }
-      body += chunk.toString('utf8');
+      chunks.push(chunk);
     });
 
     req.on('end', () => {
+      const body = Buffer.concat(chunks).toString('utf8');
       if (!body) {
         reject(new BadRequestError('Request body is empty'));
         return;
@@ -114,7 +115,8 @@ async function forwardToClickHouse(report) {
 
 function createServer() {
   return http.createServer(async (req, res) => {
-    if (req.method !== 'POST' || req.url !== REPORT_PATH) {
+    const requestPath = new URL(req.url || '/', 'http://localhost').pathname;
+    if (req.method !== 'POST' || requestPath !== REPORT_PATH) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found' }));
       return;
