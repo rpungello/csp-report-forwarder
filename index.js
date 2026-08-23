@@ -13,6 +13,7 @@ const CLICKHOUSE_URL = process.env.CLICKHOUSE_URL || 'http://localhost:8123';
 const CLICKHOUSE_INSERT_QUERY =
   process.env.CLICKHOUSE_INSERT_QUERY ||
   'INSERT INTO csp_reports (received_at, report_json) FORMAT JSONEachRow';
+const CLICKHOUSE_TIMEOUT_MS = Number(process.env.CLICKHOUSE_TIMEOUT_MS || 5000);
 const PORT = Number(process.env.PORT || 3000);
 
 class BadRequestError extends Error {}
@@ -56,6 +57,10 @@ function parseRequestBody(req) {
     });
 
     req.on('end', () => {
+      if (aborted) {
+        return;
+      }
+
       const body = Buffer.concat(chunks).toString('utf8');
       if (!body) {
         reject(new BadRequestError('Request body is empty'));
@@ -83,9 +88,13 @@ function getAuthorizationHeader() {
   return undefined;
 }
 
+function formatDateTime64(date) {
+  return date.toISOString().replace('T', ' ').replace('Z', '');
+}
+
 async function forwardToClickHouse(report) {
   const row = {
-    received_at: new Date().toISOString(),
+    received_at: formatDateTime64(new Date()),
     report_json: JSON.stringify(report)
   };
 
@@ -100,15 +109,23 @@ async function forwardToClickHouse(report) {
     headers.Authorization = authorizationHeader;
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: `${JSON.stringify(row)}\n`
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: `${JSON.stringify(row)}\n`,
+      signal: AbortSignal.timeout(CLICKHOUSE_TIMEOUT_MS)
+    });
+  } catch (error) {
+    console.error('ClickHouse request failed:', error);
+    throw new UpstreamError('Upstream ClickHouse request failed');
+  }
 
   if (!response.ok) {
     const message = await response.text();
-    throw new UpstreamError(`ClickHouse insert failed (${response.status}): ${message}`);
+    console.error(`ClickHouse insert failed (${response.status}): ${message}`);
+    throw new UpstreamError('Upstream ClickHouse request failed');
   }
 }
 

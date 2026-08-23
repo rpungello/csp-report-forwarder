@@ -18,6 +18,7 @@ By default, the service listens on `http://0.0.0.0:3000/csp-report`.
 - `MAX_BODY_SIZE_BYTES` (default: `1048576`)
 - `CLICKHOUSE_URL` (default: `http://localhost:8123`)
 - `CLICKHOUSE_INSERT_QUERY` (default: `INSERT INTO csp_reports (received_at, report_json) FORMAT JSONEachRow`)
+- `CLICKHOUSE_TIMEOUT_MS` (default: `5000`)
 - `CLICKHOUSE_USER` (optional)
 - `CLICKHOUSE_PASSWORD` (optional)
 
