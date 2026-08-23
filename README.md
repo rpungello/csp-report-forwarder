@@ -77,6 +77,36 @@ TLS, since the endpoint needs to be reachable over HTTPS from real browsers.
 - `GET /healthz` — returns `200` if ClickHouse is reachable, `503` otherwise.
   Used by the Docker `HEALTHCHECK`.
 
+## CI: automatic build & publish to GitHub Container Registry
+
+`.github/workflows/docker-publish.yml` builds the image on every push to
+`main`, on version tags (`v1.2.3`), and on pull requests (build-only, no
+push). On `main` it publishes to GHCR as:
+
+```
+ghcr.io/<owner>/<repo>:latest
+ghcr.io/<owner>/<repo>:main
+ghcr.io/<owner>/<repo>:sha-<short-sha>
+```
+
+Pushing a tag like `v1.2.0` additionally publishes `:1.2.0` and `:1.2`.
+
+No secrets to configure — it uses the repo's built-in `GITHUB_TOKEN`, which
+already has permission to push to `ghcr.io/<owner>/<repo>`. The first time
+the workflow runs, the resulting package may be created as **private**; if
+you want hosts to `docker pull` it without authenticating, go to the
+package's settings on GitHub and set its visibility to public (or `docker
+login ghcr.io` on each host with a token that has `read:packages`).
+
+On your Docker hosts:
+
+```bash
+docker pull ghcr.io/<owner>/<repo>:latest
+docker run -d --name csp-report-forwarder -p 8080:8080 \
+  -e CLICKHOUSE_URL=... -e CLICKHOUSE_PASSWORD=... \
+  ghcr.io/<owner>/<repo>:latest
+```
+
 ## Deploying to multiple Docker hosts
 
 Push the image to a registry your hosts can pull from, then run the same
