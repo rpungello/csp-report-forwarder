@@ -51,3 +51,9 @@ test('parseRequestBody rejects empty body', async () => {
 
   await assert.rejects(parseRequestBody(req), /Request body is empty/);
 });
+
+test('parseRequestBody rejects oversized body', async () => {
+  const req = createMockRequest(['a'.repeat(1024 * 1024 + 1)]);
+
+  await assert.rejects(parseRequestBody(req), /Request body too large/);
+});

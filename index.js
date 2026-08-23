@@ -89,12 +89,11 @@ async function forwardToClickHouse(report) {
     report_json: JSON.stringify(report)
   };
 
-  const url = `${CLICKHOUSE_URL.replace(/\/$/, '')}/?query=${encodeURIComponent(
-    CLICKHOUSE_INSERT_QUERY
-  )}`;
+  const url = `${CLICKHOUSE_URL.replace(/\/$/, '')}/`;
 
   const headers = {
-    'Content-Type': 'text/plain'
+    'Content-Type': 'text/plain',
+    'X-ClickHouse-Query': CLICKHOUSE_INSERT_QUERY
   };
   const authorizationHeader = getAuthorizationHeader();
   if (authorizationHeader) {
@@ -116,9 +115,14 @@ async function forwardToClickHouse(report) {
 function createServer() {
   return http.createServer(async (req, res) => {
     const requestPath = new URL(req.url || '/', 'http://localhost').pathname;
-    if (req.method !== 'POST' || requestPath !== REPORT_PATH) {
+    if (requestPath !== REPORT_PATH) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Not found' }));
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.writeHead(405, { 'Content-Type': 'application/json', Allow: 'POST' });
+      res.end(JSON.stringify({ error: 'Method not allowed' }));
       return;
     }
 
