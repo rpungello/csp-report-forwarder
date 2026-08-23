@@ -25,7 +25,7 @@ By default, the service listens on `http://0.0.0.0:3000/csp-report`.
 
 ```sql
 CREATE TABLE csp_reports (
-  received_at DateTime,
+  received_at DateTime64(3),
   report_json String
 ) ENGINE = MergeTree
 ORDER BY received_at;

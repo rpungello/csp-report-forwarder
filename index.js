@@ -2,13 +2,21 @@
 
 const http = require('node:http');
 
-const MAX_BODY_SIZE_BYTES = Number(process.env.MAX_BODY_SIZE_BYTES || 1024 * 1024);
+const DEFAULT_MAX_BODY_SIZE_BYTES = 1024 * 1024;
+const parsedMaxBodySize = Number(process.env.MAX_BODY_SIZE_BYTES);
+const MAX_BODY_SIZE_BYTES =
+  Number.isFinite(parsedMaxBodySize) && parsedMaxBodySize > 0
+    ? parsedMaxBodySize
+    : DEFAULT_MAX_BODY_SIZE_BYTES;
 const REPORT_PATH = process.env.REPORT_PATH || '/csp-report';
 const CLICKHOUSE_URL = process.env.CLICKHOUSE_URL || 'http://localhost:8123';
 const CLICKHOUSE_INSERT_QUERY =
   process.env.CLICKHOUSE_INSERT_QUERY ||
   'INSERT INTO csp_reports (received_at, report_json) FORMAT JSONEachRow';
 const PORT = Number(process.env.PORT || 3000);
+
+class BadRequestError extends Error {}
+class UpstreamError extends Error {}
 
 function extractReport(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -30,11 +38,17 @@ function parseRequestBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
     let bytes = 0;
+    let aborted = false;
 
     req.on('data', (chunk) => {
+      if (aborted) {
+        return;
+      }
+
       bytes += chunk.length;
       if (bytes > MAX_BODY_SIZE_BYTES) {
-        reject(new Error('Request body too large'));
+        aborted = true;
+        reject(new BadRequestError('Request body too large'));
         req.destroy();
         return;
       }
@@ -43,14 +57,14 @@ function parseRequestBody(req) {
 
     req.on('end', () => {
       if (!body) {
-        reject(new Error('Request body is empty'));
+        reject(new BadRequestError('Request body is empty'));
         return;
       }
 
       try {
         resolve(JSON.parse(body));
       } catch {
-        reject(new Error('Invalid JSON body'));
+        reject(new BadRequestError('Invalid JSON body'));
       }
     });
 
@@ -79,7 +93,7 @@ async function forwardToClickHouse(report) {
   )}`;
 
   const headers = {
-    'Content-Type': 'application/json'
+    'Content-Type': 'text/plain'
   };
   const authorizationHeader = getAuthorizationHeader();
   if (authorizationHeader) {
@@ -94,7 +108,7 @@ async function forwardToClickHouse(report) {
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(`ClickHouse insert failed (${response.status}): ${message}`);
+    throw new UpstreamError(`ClickHouse insert failed (${response.status}): ${message}`);
   }
 }
 
@@ -114,7 +128,8 @@ function createServer() {
       res.writeHead(202, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'accepted' }));
     } catch (error) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
+      const statusCode = error instanceof BadRequestError ? 400 : 502;
+      res.writeHead(statusCode, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
           error: error instanceof Error ? error.message : 'Unknown error'
