@@ -1,7 +1,7 @@
 -- Run this once against your ClickHouse instance before starting the
 -- forwarder. Adjust the database name to match CLICKHOUSE_DATABASE.
 
-CREATE TABLE IF NOT EXISTS default.csp_reports
+CREATE TABLE IF NOT EXISTS csp.reports
 (
     received_at        DateTime DEFAULT now(),
     document_uri        String,
