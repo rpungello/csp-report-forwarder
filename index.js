@@ -13,7 +13,12 @@ const CLICKHOUSE_URL = process.env.CLICKHOUSE_URL || 'http://localhost:8123';
 const CLICKHOUSE_INSERT_QUERY =
   process.env.CLICKHOUSE_INSERT_QUERY ||
   'INSERT INTO csp_reports (received_at, report_json) FORMAT JSONEachRow';
-const CLICKHOUSE_TIMEOUT_MS = Number(process.env.CLICKHOUSE_TIMEOUT_MS || 5000);
+const DEFAULT_CLICKHOUSE_TIMEOUT_MS = 5000;
+const parsedClickhouseTimeoutMs = Number(process.env.CLICKHOUSE_TIMEOUT_MS);
+const CLICKHOUSE_TIMEOUT_MS =
+  Number.isFinite(parsedClickhouseTimeoutMs) && parsedClickhouseTimeoutMs > 0
+    ? parsedClickhouseTimeoutMs
+    : DEFAULT_CLICKHOUSE_TIMEOUT_MS;
 const PORT = Number(process.env.PORT || 3000);
 
 class BadRequestError extends Error {}
@@ -101,7 +106,7 @@ async function forwardToClickHouse(report) {
   const url = `${CLICKHOUSE_URL.replace(/\/$/, '')}/`;
 
   const headers = {
-    'Content-Type': 'text/plain',
+    'Content-Type': 'application/x-ndjson',
     'X-ClickHouse-Query': CLICKHOUSE_INSERT_QUERY
   };
   const authorizationHeader = getAuthorizationHeader();
