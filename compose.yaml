@@ -1,0 +1,16 @@
+services:
+  app:
+    # Swap this for the ghcr.io image once it's published, e.g.:
+    # image: ghcr.io/<owner>/<repo>:latest
+    build: .
+    container_name: csp-report-forwarder
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      CLICKHOUSE_URL: ${CLICKHOUSE_URL:-http://clickhouse:8123}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-changeme}
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-default}
+      CLICKHOUSE_TABLE: ${CLICKHOUSE_TABLE:-csp_reports}
+    ports:
+      - "8080:8080"

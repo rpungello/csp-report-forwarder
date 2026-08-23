@@ -107,6 +107,43 @@ docker run -d --name csp-report-forwarder -p 8080:8080 \
   ghcr.io/<owner>/<repo>:latest
 ```
 
+## Run with Docker Compose
+
+`compose.yaml` runs just the forwarder — it assumes ClickHouse is already
+running elsewhere (its own container/host/cluster) and you point the
+forwarder at it via env vars.
+
+Make sure you've applied `clickhouse/init.sql` to your ClickHouse instance
+first (see step 1 above), then:
+
+```bash
+cp .env.example .env   # set CLICKHOUSE_URL and credentials
+docker compose up -d --build
+```
+
+This starts just `csp-report-forwarder`, listening on `8080`.
+
+Check it's healthy:
+
+```bash
+curl http://localhost:8080/healthz
+```
+
+To use the published image instead of building locally, edit `compose.yaml`
+and swap the `build: .` line for `image: ghcr.io/<owner>/<repo>:latest`.
+
+If your ClickHouse instance runs in Docker on the same host under a
+different Compose project or standalone container, use its container name
+or `host.docker.internal` (or the host's LAN IP) in `CLICKHOUSE_URL` rather
+than `localhost`, since `localhost` inside the forwarder's container refers
+to itself, not the host.
+
+Tear down:
+
+```bash
+docker compose down
+```
+
 ## Deploying to multiple Docker hosts
 
 Push the image to a registry your hosts can pull from, then run the same
