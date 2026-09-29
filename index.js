@@ -39,7 +39,7 @@ app.use(
 function normalizeReports(body, req) {
   const now = new Date();
   const userAgent = req.get('user-agent') || '';
-  const remoteAddr = req.ip || '';
+  const remoteAddr = req.get('cf-connecting-ip') || req.ip || '';
 
   // Newer Reporting API sends an array of report objects, each with a
   // "body" field. Legacy report-uri sends a single object with a
